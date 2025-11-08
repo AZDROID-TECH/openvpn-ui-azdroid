@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Scrollbar-ı göstərmədən scroll funksionallığını qoruyur (WebKit brauzerləri üçün) */
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  }
+  body {
+    @apply bg-gray-900 text-gray-100 antialiased;
+    font-family: 'Ubuntu', sans-serif;
+    /* Scrollbar gizlədildiyi üçün artıq buna ehtiyac yoxdur */
+    /* overflow-y: scroll; */
+  }
+}
+
+@layer components {
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag-region {
+    -webkit-app-region: no-drag;
+  }
+}

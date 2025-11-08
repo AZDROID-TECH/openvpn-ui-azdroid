@@ -1,0 +1,28 @@
+{
+  "welcomeTitle": "Welcome to OpenVPN UI! ✨",
+  "welcomeMessage": "To get started, please import your configuration file.",
+  "selectFileButton": "Select .ovpn File",
+  "credentialsTitle": "Enter Credentials",
+  "usernamePlaceholder": "Your Username",
+  "passwordPlaceholder": "Your Password",
+  "saveAndConnectButton": "Save & Connect 🚀",
+  "appName": "OpenVPN UI",
+  "fromAzdroid": "from AZDROID Tech",
+  "createdBy": "AZDROID Tech. (2025)",
+  "status": {
+    "disconnected": "Not Connected",
+    "connecting": "Connecting...",
+    "connected": "Connected 🛡️",
+    "error": "An Error Occurred ❌"
+  },
+  "resetButton": "Reset",
+  "resetModalTitle": "Are you sure? 🤔",
+  "resetModalMessage": "All saved configuration data will be deleted. This action cannot be undone.",
+  "cancelButton": "Cancel",
+  "confirmResetButton": "Yes, Delete",
+  "authFailedTitle": "Authentication Failed 🔑",
+  "authFailedMessage": "Your password may be incorrect. Please check your password and try again.",
+  "newPasswordPlaceholder": "Enter your new password",
+  "retryButton": "Retry",
+  "resetAppButton": "Reset App"
+}

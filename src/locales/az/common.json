@@ -1,0 +1,28 @@
+{
+  "welcomeTitle": "OpenVPN UI-a Xoş Gəlmisiniz! ✨",
+  "welcomeMessage": "Başlamaq üçün konfiqurasiya faylınızı import edin.",
+  "selectFileButton": ".ovpn Faylı Seç",
+  "credentialsTitle": "Məlumatları daxil edin",
+  "usernamePlaceholder": "İstifadəçi adınız",
+  "passwordPlaceholder": "Şifrəniz",
+  "saveAndConnectButton": "Qoşul və Yadda Saxla 🚀",
+  "appName": "OpenVPN UI",
+  "fromAzdroid": "AZDROID Tech. sizin üçün hazırladı",
+  "createdBy": "AZDROID Tech. (2025)",
+  "status": {
+    "disconnected": "Bağlantı yoxdur",
+    "connecting": "Bağlantı qurulur...",
+    "connected": "Bağlantı Quruldu 🛡️",
+    "error": "Xəta baş verdi ❌"
+  },
+  "resetButton": "Sıfırla",
+  "resetModalTitle": "Əminsiniz? 🤔",
+  "resetModalMessage": "Bütün yadda saxlanılmış konfiqurasiya məlumatları silinəcək. Bu əməliyyat geri qaytarıla bilməz.",
+  "cancelButton": "Ləğv Et",
+  "confirmResetButton": "Bəli, Sil",
+  "authFailedTitle": "Bağlantı Uğursuz Oldu 🔑",
+  "authFailedMessage": "Şifrəniz səhv ola bilər. Zəhmət olmasa, şifrənizi yoxlayıb yenidən cəhd edin.",
+  "newPasswordPlaceholder": "Yeni şifrənizi daxil edin",
+  "retryButton": "Yenidən Cəhd Et",
+  "resetAppButton": "Tətbiqi Sıfırla"
+}
