@@ -1,39 +1,68 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { Credentials } from '../src/types/credentials';
+import { ConnectionState, InitialConfigResponse, RendererApi } from '../src/types/ipc';
+
+const CHANNELS = {
+  config: {
+    getInitial: 'config:get-initial',
+    openFileDialog: 'config:open-file-dialog',
+    saveCredentials: 'config:save-credentials',
+    retryAuthWithNewPassword: 'config:retry-auth-with-new-password',
+    reset: 'config:reset',
+  },
+  vpn: {
+    connect: 'vpn:connect',
+    disconnect: 'vpn:disconnect',
+    statusChanged: 'vpn:status-changed',
+    authFailed: 'vpn:auth-failed',
+  },
+  app: {
+    minimizeWindow: 'app:minimize-window',
+    closeToTray: 'app:close-to-tray',
+  },
+} as const;
+
+function onEvent<T>(channel: string, callback: (payload: T) => void): () => void {
+  const listener = (_event: IpcRendererEvent, payload: T) => {
+    callback(payload);
+  };
+
+  ipcRenderer.on(channel, listener);
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
 
 /**
- * Renderer prosesinə təqdim ediləcək təhlükəsiz API.
- * Bu API, main proseslə əlaqə qurmaq üçün istifadə olunur.
+ * Renderer prosesinə yalnız whitelist edilmiş, tipli API təqdim edilir.
  */
-export const api = {
-  // Main prosesdən gələn hadisələri dinləmək üçün
-  on: (channel: string, callback: (data: any) => void) => {
-    const subscription = (event: IpcRendererEvent, ...args: any[]) => callback(args[0]);
-    ipcRenderer.on(channel, subscription);
-    
-    // Komponent unmount olduqda listener-i silmək üçün funksiya qaytarırıq
+const api: RendererApi = {
+  onVpnStatusChanged: (callback) => onEvent<ConnectionState>(CHANNELS.vpn.statusChanged, callback),
+  onAuthFailed: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on(CHANNELS.vpn.authFailed, listener);
     return () => {
-      ipcRenderer.removeListener(channel, subscription);
+      ipcRenderer.removeListener(CHANNELS.vpn.authFailed, listener);
     };
   },
-
-  // Main prosesə sorğu göndərmək və cavab gözləmək üçün (invoke/handle)
-  invoke: (channel: string, ...args: any[]): Promise<any> => {
-    return ipcRenderer.invoke(channel, ...args);
+  getInitialConfig: () => ipcRenderer.invoke(CHANNELS.config.getInitial) as Promise<InitialConfigResponse>,
+  openFileDialog: () => ipcRenderer.invoke(CHANNELS.config.openFileDialog) as Promise<boolean>,
+  saveCredentials: (credentials: Credentials) => ipcRenderer.invoke(CHANNELS.config.saveCredentials, credentials) as Promise<void>,
+  retryAuthWithNewPassword: (password: string) =>
+    ipcRenderer.invoke(CHANNELS.config.retryAuthWithNewPassword, password) as Promise<void>,
+  resetApp: () => ipcRenderer.invoke(CHANNELS.config.reset) as Promise<void>,
+  connectVpn: () => {
+    ipcRenderer.send(CHANNELS.vpn.connect);
   },
-
-  // Main prosesə tək tərəfli mesaj göndərmək üçün (send)
-  send: (channel: string, ...args: any[]): void => {
-    ipcRenderer.send(channel, ...args);
+  disconnectVpn: () => {
+    ipcRenderer.send(CHANNELS.vpn.disconnect);
+  },
+  minimizeWindow: () => {
+    ipcRenderer.send(CHANNELS.app.minimizeWindow);
+  },
+  closeToTray: () => {
+    ipcRenderer.send(CHANNELS.app.closeToTray);
   },
 };
 
 contextBridge.exposeInMainWorld('api', api);
-
-// TypeScript-in renderer prosesində `window.api` obyektini tanıması üçün
-// bir tip faylı (renderer.d.ts) yaratmaq lazımdır.
-declare global {
-  interface Window {
-    api: typeof api;
-  }
-}

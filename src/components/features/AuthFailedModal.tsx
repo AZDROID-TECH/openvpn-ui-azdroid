@@ -1,34 +1,37 @@
 import { useTranslation } from 'react-i18next';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppDispatch } from '../../App';
-import { showModal, resetApp } from '../../features/app/appSlice';
+import { showModal, resetApp, retryAuthWithNewPassword } from '../../features/app/appSlice';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
-const passwordSchema = z.object({
-  password: z.string().min(1, 'Şifrə boş ola bilməz'),
-});
-type PasswordForm = z.infer<typeof passwordSchema>;
+type PasswordForm = {
+  password: string;
+};
 
 export const AuthFailedModal = ({ isOpen }: { isOpen: boolean }) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const passwordSchema = useMemo(
+    () =>
+      z.object({
+        password: z.string().min(1, t('validation.passwordRequired')),
+      }),
+    [t],
+  );
 
   const { register, handleSubmit, formState: { errors } } = useForm<PasswordForm>({
-    resolver: zodResolver(passwordSchema),
+    resolver: zodResolver(passwordSchema as z.ZodType<PasswordForm>),
   });
 
   const handleClose = () => dispatch(showModal('none'));
   
   const handleRetry = (data: PasswordForm) => {
-    // TODO: İstifadəçi adını mövcud konfiqurasiyadan almalıyıq.
-    // Hələlik bu məntiq tam deyil.
-    // dispatch(saveCredentialsAndConnect({ username: 'TODO', password: data.password }));
-    console.log("Retry with new password", data.password);
-    handleClose();
+    dispatch(retryAuthWithNewPassword(data.password));
   };
 
   const handleReset = () => {
@@ -37,7 +40,7 @@ export const AuthFailedModal = ({ isOpen }: { isOpen: boolean }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t('authFailedTitle')}>
-      <p className="text-sm text-gray-400 mb-4">{t('authFailedMessage')}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('authFailedMessage')}</p>
       <form onSubmit={handleSubmit(handleRetry)} className="flex flex-col gap-4">
         <Input
           type="password"

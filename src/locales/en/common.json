@@ -9,6 +9,11 @@
   "appName": "OpenVPN UI",
   "fromAzdroid": "from AZDROID Tech",
   "createdBy": "AZDROID Tech. (2025)",
+  "loading": "Loading...",
+  "themeDark": "Dark",
+  "themeLight": "Light",
+  "switchToDarkMode": "Switch to dark mode",
+  "switchToLightMode": "Switch to light mode",
   "status": {
     "disconnected": "Not Connected",
     "connecting": "Connecting...",
@@ -24,5 +29,9 @@
   "authFailedMessage": "Your password may be incorrect. Please check your password and try again.",
   "newPasswordPlaceholder": "Enter your new password",
   "retryButton": "Retry",
-  "resetAppButton": "Reset App"
+  "resetAppButton": "Reset App",
+  "validation": {
+    "usernameRequired": "Username is required",
+    "passwordRequired": "Password is required"
+  }
 }

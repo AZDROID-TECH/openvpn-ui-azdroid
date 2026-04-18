@@ -4,7 +4,7 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 import App from './App';
 import './i18n'; // i18next konfiqurasiyasını başladın
-import 'boxicons/css/boxicons.min.css'; // Boxicons CSS
+import 'boxicons/css/boxicons.min.css'; // Boxicons üslub faylları
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

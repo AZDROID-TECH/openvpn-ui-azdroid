@@ -28,8 +28,8 @@ const AnimatedStatusIcon = () => {
       {/* Power Icon (Disconnected) */}
       <IconWrapper isVisible={state === 'disconnected'}>
         <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" className="stroke-gray-500" />
-          <line x1="12" y1="2" x2="12" y2="12" className="stroke-gray-500" />
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0" className="stroke-gray-600 dark:stroke-gray-500" />
+          <line x1="12" y1="2" x2="12" y2="12" className="stroke-gray-600 dark:stroke-gray-500" />
         </svg>
       </IconWrapper>
 

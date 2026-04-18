@@ -9,6 +9,11 @@
   "appName": "OpenVPN UI",
   "fromAzdroid": "AZDROID Tech. sizin üçün hazırladı",
   "createdBy": "AZDROID Tech. (2025)",
+  "loading": "Yüklənir...",
+  "themeDark": "Qaranlıq",
+  "themeLight": "İşıqlı",
+  "switchToDarkMode": "Qaranlıq mövzuya keç",
+  "switchToLightMode": "İşıqlı mövzuya keç",
   "status": {
     "disconnected": "Bağlantı yoxdur",
     "connecting": "Bağlantı qurulur...",
@@ -24,5 +29,9 @@
   "authFailedMessage": "Şifrəniz səhv ola bilər. Zəhmət olmasa, şifrənizi yoxlayıb yenidən cəhd edin.",
   "newPasswordPlaceholder": "Yeni şifrənizi daxil edin",
   "retryButton": "Yenidən Cəhd Et",
-  "resetAppButton": "Tətbiqi Sıfırla"
+  "resetAppButton": "Tətbiqi Sıfırla",
+  "validation": {
+    "usernameRequired": "İstifadəçi adı boş ola bilməz",
+    "passwordRequired": "Şifrə boş ola bilməz"
+  }
 }

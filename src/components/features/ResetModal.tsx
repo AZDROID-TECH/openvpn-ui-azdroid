@@ -18,7 +18,7 @@ export const ResetModal = ({ isOpen }: { isOpen: boolean }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={t('resetModalTitle')}>
-      <p className="text-sm text-gray-400 mb-6">{t('resetModalMessage')}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{t('resetModalMessage')}</p>
       <div className="flex gap-4">
         <Button variant="secondary" onClick={handleClose} className="flex-1">
           {t('cancelButton')}

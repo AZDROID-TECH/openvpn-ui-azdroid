@@ -8,7 +8,7 @@ import AnimatedStatusIcon from './AnimatedStatusIcon';
 const ringVariants = cva('w-48 h-48 rounded-full border-8 flex items-center justify-center transition-colors duration-500', {
   variants: {
     state: {
-      disconnected: 'border-gray-700',
+      disconnected: 'border-gray-400 dark:border-gray-700',
       connecting: 'border-orange-500 animate-spin',
       connected: 'border-green-500',
       error: 'border-red-500',
@@ -17,7 +17,7 @@ const ringVariants = cva('w-48 h-48 rounded-full border-8 flex items-center just
 });
 
 // Mərkəzdəki düymə üçün variantlar
-const buttonVariants = cva('w-40 h-40 rounded-full bg-gray-800 shadow-lg active:scale-95 transition-transform flex items-center justify-center no-drag-region');
+const buttonVariants = cva('w-40 h-40 rounded-full bg-gray-200 dark:bg-gray-800 shadow-lg active:scale-95 transition-transform flex items-center justify-center no-drag-region');
 
 export const ConnectionRing = () => {
   const dispatch = useAppDispatch();

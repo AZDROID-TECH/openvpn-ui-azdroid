@@ -5,6 +5,7 @@ import { selectConnectionState, showModal } from '../features/app/appSlice';
 import { WindowControls } from '../components/layout/WindowControls';
 import { ConnectionRing } from '../components/features/ConnectionRing';
 import { LanguageSwitcher } from '../components/layout/LanguageSwitcher';
+import { ThemeSwitcher } from '../components/layout/ThemeSwitcher';
 
 /**
  * Əsas tətbiq ekranı. Konfiqurasiya mövcud olduqda göstərilir.
@@ -19,25 +20,26 @@ const MainPage = () => {
   };
 
   return (
-    <div className="w-full h-screen flex justify-center items-center bg-gray-900 text-white overflow-hidden drag-region">
+    <div className="w-full h-screen flex justify-center items-center bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-white overflow-hidden drag-region transition-colors duration-300">
       {/* Arxa fon üçün bulanıq effekt */}
-      <div className="absolute w-48 h-48 bg-gradient-to-r from-orange-500 to-gray-800 rounded-full blur-3xl opacity-50" />
+      <div className="absolute w-48 h-48 bg-gradient-to-r from-orange-500 to-gray-500 dark:to-gray-800 rounded-full blur-3xl opacity-40 dark:opacity-50" />
       
-      <div className="relative w-[380px] h-[580px] bg-gray-800/60 backdrop-blur-md border border-white/10 flex flex-col justify-between items-center p-6 text-center">
+      <div className="relative w-[380px] h-[580px] bg-white/80 border border-gray-300 dark:bg-gray-800/60 dark:border-white/10 backdrop-blur-md flex flex-col justify-between items-center p-6 text-center">
         <WindowControls />
         <LanguageSwitcher />
+        <ThemeSwitcher />
 
         <header className="flex flex-col items-center gap-2 pt-8">
           <Icon name="bxs-lock-open" className="text-7xl text-orange-500" />
           <div className="text-center">
             <h1 className="text-xl font-bold opacity-90">{t('appName')}</h1>
-            <p className="text-xs text-gray-400 opacity-70">{t('fromAzdroid')}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 opacity-70">{t('fromAzdroid')}</p>
           </div>
         </header>
 
         <main className="flex flex-col items-center gap-4">
           <ConnectionRing />
-          <div id="status-text" className="font-medium text-gray-300 h-6">
+          <div id="status-text" className="font-medium text-gray-700 dark:text-gray-300 h-6">
             {t(`status.${connectionState}`)}
           </div>
         </main>

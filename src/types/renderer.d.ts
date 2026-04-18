@@ -1,7 +1,7 @@
-import { api } from '../../electron/preload';
+import { RendererApi } from './ipc';
 
 declare global {
   interface Window {
-    api: typeof api;
+    api: RendererApi;
   }
 }

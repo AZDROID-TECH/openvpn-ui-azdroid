@@ -10,8 +10,8 @@ export const LanguageSwitcher = () => {
   const langButtonClass = (lang: 'az' | 'en') => 
     `font-bold text-xs px-2 py-1 rounded-md transition-colors ${
       i18n.language === lang 
-        ? 'bg-orange-600 text-white' 
-        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        ? 'bg-orange-600 text-white'
+        : 'bg-gray-300 text-gray-800 hover:bg-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
     }`;
 
   return (

@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 // Düymə stilləri üçün variantları təyin edirik (class-variance-authority istifadə edərək)
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-bold transition-transform duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:pointer-events-none active:scale-95',
+  'inline-flex items-center justify-center rounded-md text-sm font-bold transition-transform duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 disabled:opacity-50 disabled:pointer-events-none active:scale-95',
   {
     variants: {
       variant: {

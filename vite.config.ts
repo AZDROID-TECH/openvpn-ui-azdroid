@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
 
 // DÜZƏLİŞ: __dirname ESM mühitində mövcud deyil, ona görə manual olaraq təyin edilir.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 export default defineConfig({
   plugins: [
@@ -32,4 +32,9 @@ export default defineConfig({
       renderer: {},
     }),
   ],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.ts',
+  },
 })

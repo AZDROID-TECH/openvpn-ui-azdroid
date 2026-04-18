@@ -1,40 +1,105 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, Tray } from 'electron';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import log from 'electron-log/main';
-import * as configService from '../src/services/configService';
-import * as vpnService from '../src/services/vpnService';
-
-// DÜZƏLİŞ: Gözlənilməz bağlanmanın qarşısını almaq üçün SIGHUP siqnalını görməzdən gəlirik.
-// Bu, xüsusilə arxa planda terminal olmadan işləyən paketlənmiş tətbiqlərdə
-// sudo-prompt/pkexec kimi alətlərin tətbiqi bağlamasının qarşısını alır.
-process.on('SIGHUP', () => {
-  log.warn('Received SIGHUP signal. Ignoring to prevent unexpected shutdown.');
-});
+import { Credentials } from '../src/types/credentials';
+import { ConnectionState } from '../src/types/ipc';
+import * as configStore from './services/configStore';
+import { VpnManager } from './services/vpnManager';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 process.env.DIST = path.join(__dirname, '../dist');
-process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron');
-
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 
-log.initialize();
-log.info('App starting...');
+const CHANNELS = {
+  config: {
+    getInitial: 'config:get-initial',
+    openFileDialog: 'config:open-file-dialog',
+    saveCredentials: 'config:save-credentials',
+    retryAuthWithNewPassword: 'config:retry-auth-with-new-password',
+    reset: 'config:reset',
+  },
+  vpn: {
+    connect: 'vpn:connect',
+    disconnect: 'vpn:disconnect',
+    statusChanged: 'vpn:status-changed',
+    authFailed: 'vpn:auth-failed',
+  },
+  app: {
+    minimizeWindow: 'app:minimize-window',
+    closeToTray: 'app:close-to-tray',
+  },
+} as const;
 
-let win: BrowserWindow | null;
+const vpnManager = new VpnManager();
+
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let isQuitting = false;
 
-function createWindow() {
-  log.info('Creating main window...');
-  win = new BrowserWindow({
+function getIconPath(): string {
+  return path.join(__dirname, '../build/icons/512x512.png');
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.focus();
+}
+
+function createTray(): void {
+  if (tray) {
+    return;
+  }
+
+  try {
+    tray = new Tray(getIconPath());
+  } catch (error) {
+    log.error('Tray yaradıla bilmədi, tray funksiyası deaktiv edildi.', error);
+    return;
+  }
+  tray.setToolTip('OpenVPN UI');
+
+  tray.on('double-click', () => {
+    showMainWindow();
+  });
+
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Open OpenVPN UI',
+        click: () => showMainWindow(),
+      },
+      {
+        label: 'Quit',
+        click: async () => {
+          await quitApplication();
+        },
+      },
+    ]),
+  );
+}
+
+function createMainWindow(): void {
+  mainWindow = new BrowserWindow({
     width: 380,
     height: 580,
     resizable: false,
     frame: false,
-    icon: path.join(__dirname, '../build/icons/512x512.png'),
+    icon: getIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -43,121 +108,179 @@ function createWindow() {
   });
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
+    void mainWindow.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(process.env.DIST, 'index.html'));
+    void mainWindow.loadFile(path.join(process.env.DIST ?? '', 'index.html'));
+  }
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+function emitToRenderer(channel: string, payload?: unknown): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (typeof payload === 'undefined') {
+    mainWindow.webContents.send(channel);
+    return;
+  }
+
+  mainWindow.webContents.send(channel, payload);
+}
+
+function assertCredentials(payload: unknown): asserts payload is Credentials {
+  if (
+    typeof payload !== 'object' ||
+    payload === null ||
+    !('username' in payload) ||
+    !('password' in payload) ||
+    typeof payload.username !== 'string' ||
+    typeof payload.password !== 'string'
+  ) {
+    throw new Error('Yanlış credentials payload.');
   }
 }
 
-// == Lifecycle Events ==
-app.on('window-all-closed', async () => {
+async function quitApplication(): Promise<void> {
   isQuitting = true;
-  if (process.platform !== 'darwin') {
-    log.info('All windows closed. Checking if VPN is running before quit.');
-    const isRunning = await vpnService.isVpnRunning();
-    if (isRunning) {
-        vpnService.killVpnProcess(() => app.quit());
-    } else {
-        app.quit();
-    }
-    win = null;
-  }
-});
-
-app.whenReady().then(createWindow);
-
-// == IPC Handlers ==
-
-// -- App Actions --
-ipcMain.on('quit-app', async () => {
-  isQuitting = true;
-  log.info('Quit app requested. Checking if VPN is running before quit.');
-  const isRunning = await vpnService.isVpnRunning();
-  if (isRunning) {
-    vpnService.killVpnProcess(() => app.quit());
-  } else {
+  try {
+    await vpnManager.forceStop();
+  } catch (error) {
+    log.warn('VPN dayandırılarkən xəta oldu.', error);
+  } finally {
     app.quit();
   }
-});
+}
 
-ipcMain.on('minimize-app', () => {
-  win?.minimize();
-});
+function registerIpcHandlers(): void {
+  ipcMain.handle(CHANNELS.config.getInitial, async () => configStore.getInitialConfigState());
 
-// -- Config Actions --
-ipcMain.handle('get-initial-config', async () => {
-  const ovpnConfig = configService.getOvpnConfig();
-  const credentials = await configService.getCredentials();
-  return {
-    hasConfig: !!(ovpnConfig && credentials)
-  };
-});
+  ipcMain.handle(CHANNELS.config.openFileDialog, async () => {
+    if (!mainWindow) {
+      return false;
+    }
 
-ipcMain.handle('open-file-dialog', async () => {
-  const result = await dialog.showOpenDialog(win!, {
-    properties: ['openFile'],
-    filters: [{ name: 'OpenVPN Konfiqurasiyası', extensions: ['ovpn'] }],
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [{ name: 'OpenVPN Configuration', extensions: ['ovpn'] }],
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return false;
+    }
+
+    const content = await fs.readFile(result.filePaths[0], 'utf-8');
+    await configStore.saveOvpnConfig(content);
+    return true;
   });
 
-  if (!result.canceled && result.filePaths.length > 0) {
-    const filePath = result.filePaths[0];
-    const content = fs.readFileSync(filePath, 'utf-8');
-    configService.saveOvpnConfig(content);
-    return true;
+  ipcMain.handle(CHANNELS.config.saveCredentials, async (_event, payload: unknown) => {
+    assertCredentials(payload);
+    await configStore.saveCredentials(payload);
+  });
+
+  ipcMain.handle(CHANNELS.config.retryAuthWithNewPassword, async (_event, newPassword: unknown) => {
+    if (typeof newPassword !== 'string') {
+      throw new Error('Yanlış password payload.');
+    }
+
+    await configStore.updatePassword(newPassword);
+    const [ovpnConfig, credentials] = await Promise.all([
+      configStore.getOvpnConfig(),
+      configStore.getCredentials(),
+    ]);
+
+    if (!ovpnConfig || !credentials) {
+      throw new Error('Konfiqurasiya və ya credentials tapılmadı.');
+    }
+
+    await vpnManager.forceStop();
+    await vpnManager.connect(ovpnConfig, credentials);
+  });
+
+  ipcMain.handle(CHANNELS.config.reset, async () => {
+    await vpnManager.forceStop();
+    await configStore.deleteConfig();
+  });
+
+  ipcMain.on(CHANNELS.vpn.connect, async () => {
+    const [ovpnConfig, credentials] = await Promise.all([
+      configStore.getOvpnConfig(),
+      configStore.getCredentials(),
+    ]);
+
+    if (!ovpnConfig || !credentials) {
+      log.warn('VPN qoşulması üçün lazım olan məlumatlar tam deyil.');
+      return;
+    }
+
+    await vpnManager.connect(ovpnConfig, credentials);
+  });
+
+  ipcMain.on(CHANNELS.vpn.disconnect, async () => {
+    await vpnManager.disconnect();
+  });
+
+  ipcMain.on(CHANNELS.app.minimizeWindow, () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.on(CHANNELS.app.closeToTray, () => {
+    mainWindow?.hide();
+  });
+
+}
+
+function registerVpnEvents(): void {
+  vpnManager.on('status-changed', (status: ConnectionState) => {
+    emitToRenderer(CHANNELS.vpn.statusChanged, status);
+  });
+
+  vpnManager.on('auth-failed', () => {
+    emitToRenderer(CHANNELS.vpn.authFailed);
+  });
+}
+
+async function bootstrap(): Promise<void> {
+  log.initialize();
+  log.info('OpenVPN UI başladılır...');
+
+  // Renderer yüklənməzdən əvvəl IPC handler-ları hazır olmalıdır.
+  registerIpcHandlers();
+  registerVpnEvents();
+  createMainWindow();
+  createTray();
+}
+
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
+app.on('activate', () => {
+  if (!mainWindow) {
+    createMainWindow();
+    return;
   }
-  return false;
+
+  showMainWindow();
 });
 
-ipcMain.handle('save-credentials', async (event, credentials) => {
-  await configService.saveCredentials(credentials);
-  return true;
+app.on('window-all-closed', () => {
+  // Tray əsaslı davranış üçün tətbiqi açıq saxlayırıq.
 });
 
-ipcMain.handle('reset-app', async () => {
-    log.info('Reset app requested. Checking if VPN is running.');
-    const isRunning = await vpnService.isVpnRunning();
-    if (isRunning) {
-        vpnService.killVpnProcess(async () => {
-            await configService.deleteConfig();
-        });
-    } else {
-        await configService.deleteConfig();
-    }
-    return true;
-});
-
-// -- VPN Actions --
-ipcMain.on('connect-vpn', async () => {
-    const ovpnConfig = configService.getOvpnConfig();
-    const credentials = await configService.getCredentials();
-    if (ovpnConfig && credentials) {
-        vpnService.connect(ovpnConfig, credentials);
-    } else {
-        log.error('Attempted to connect without full configuration.');
-    }
-});
-
-ipcMain.on('disconnect-vpn', () => {
-    vpnService.disconnect();
-});
-
-// == VPN Service Event Listeners ==
-vpnService.vpnEmitter.on('vpn-status-changed', (status) => {
-    try {
-        if (!isQuitting && win && !win.isDestroyed()) {
-            win.webContents.send('vpn-status-changed', status);
-        }
-    } catch (error) {
-        log.warn('IPC message "vpn-status-changed" could not be sent. The window was likely destroyed.', error);
-    }
-});
-
-vpnService.vpnEmitter.on('auth-failed', () => {
-    try {
-        if (!isQuitting && win && !win.isDestroyed()) {
-            win.webContents.send('auth-failed');
-        }
-    } catch (error) {
-        log.warn('IPC message "auth-failed" could not be sent. The window was likely destroyed.', error);
-    }
+app.whenReady().then(() => {
+  void bootstrap().catch((error) => {
+    log.error('Bootstrap zamanı gözlənilməz xəta baş verdi.', error);
+  });
 });

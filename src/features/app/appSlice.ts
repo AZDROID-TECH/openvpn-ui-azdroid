@@ -1,8 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../../store/store';
 import { Credentials } from '../../types/credentials';
-
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+import { ConnectionState } from '../../types/ipc';
 
 interface AppState {
   status: 'loading' | 'ready';
@@ -18,34 +17,39 @@ const initialState: AppState = {
   modal: 'none',
 };
 
-// == Async Thunks ==
+// == Asinxron thunk-lar ==
 export const initializeApp = createAsyncThunk('app/initializeApp', async () => {
-  const { hasConfig } = await window.api.invoke('get-initial-config');
+  const { hasConfig } = await window.api.getInitialConfig();
   return hasConfig;
 });
 
 export const selectFile = createAsyncThunk('app/selectFile', async () => {
-  const fileSelected = await window.api.invoke('open-file-dialog');
+  const fileSelected = await window.api.openFileDialog();
   return fileSelected;
 });
 
 export const saveCredentialsAndConnect = createAsyncThunk('app/saveCredentials', async (credentials: Credentials) => {
-  await window.api.invoke('save-credentials', credentials);
-  window.api.send('connect-vpn');
+  await window.api.saveCredentials(credentials);
+  window.api.connectVpn();
   // Bu thunk-ın uğurlu olduğunu bildirmək üçün true qaytarırıq.
   return true;
 });
 
+export const retryAuthWithNewPassword = createAsyncThunk('app/retryAuthWithNewPassword', async (password: string) => {
+  await window.api.retryAuthWithNewPassword(password);
+  return true;
+});
+
 export const connectVpn = createAsyncThunk('app/connectVpn', async () => {
-  window.api.send('connect-vpn');
+  window.api.connectVpn();
 });
 
 export const disconnectVpn = createAsyncThunk('app/disconnectVpn', async () => {
-  window.api.send('disconnect-vpn');
+  window.api.disconnectVpn();
 });
 
 export const resetApp = createAsyncThunk('app/resetApp', async () => {
-    await window.api.invoke('reset-app');
+    await window.api.resetApp();
 });
 
 
@@ -73,6 +77,11 @@ export const appSlice = createSlice({
         state.hasConfig = action.payload;
         state.status = 'ready';
       })
+      .addCase(initializeApp.rejected, (state) => {
+        // Başlanğıc sorğusu uğursuz olsa belə tətbiqi bloklamırıq.
+        state.hasConfig = false;
+        state.status = 'ready';
+      })
       .addCase(resetApp.fulfilled, (state) => {
         state.hasConfig = false;
         state.connectionState = 'disconnected';
@@ -81,6 +90,12 @@ export const appSlice = createSlice({
       .addCase(saveCredentialsAndConnect.fulfilled, (state, action) => {
         if (action.payload) {
             state.hasConfig = true;
+        }
+      })
+      .addCase(retryAuthWithNewPassword.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.modal = 'none';
+          state.connectionState = 'connecting';
         }
       });
   },

@@ -20,9 +20,9 @@ i18n
   .init({
     resources,
     fallbackLng: 'az',
-    debug: process.env.NODE_ENV === 'development',
+    debug: import.meta.env.DEV,
     interpolation: {
-      escapeValue: false, // React already safes from xss
+      escapeValue: false, // React artıq XSS üçün escape əməliyyatını özü edir
     },
     defaultNS: 'common',
   });

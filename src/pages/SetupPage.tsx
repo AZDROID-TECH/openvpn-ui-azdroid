@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,27 +10,34 @@ import { Icon } from '../components/ui/Icon';
 import { useAppDispatch } from '../App';
 import { selectFile, saveCredentialsAndConnect } from '../features/app/appSlice';
 import { LanguageSwitcher } from '../components/layout/LanguageSwitcher';
+import { ThemeSwitcher } from '../components/layout/ThemeSwitcher';
 import { WindowControls } from '../components/layout/WindowControls';
 import appIcon from '../../build/icons/512x512.png'; // DÜZƏLİŞ: İkonun yeni və düzgün yolu
 
-const credentialsSchema = z.object({
-  username: z.string().min(1, 'İstifadəçi adı boş ola bilməz'),
-  password: z.string().min(1, 'Şifrə boş ola bilməz'),
-});
-
-type CredentialsForm = z.infer<typeof credentialsSchema>;
+type CredentialsForm = {
+  username: string;
+  password: string;
+};
 
 const SetupPage = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const [step, setStep] = useState<'selectFile' | 'credentials' | 'animating'>('selectFile');
+  const credentialsSchema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t('validation.usernameRequired')),
+        password: z.string().min(1, t('validation.passwordRequired')),
+      }),
+    [t],
+  );
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CredentialsForm>({
-    resolver: zodResolver(credentialsSchema),
+    resolver: zodResolver(credentialsSchema as z.ZodType<CredentialsForm>),
   });
 
   const handleFileSelect = async () => {
@@ -57,9 +64,10 @@ const SetupPage = () => {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col justify-center items-center text-center p-8 bg-gradient-to-b from-gray-800 to-gray-900 text-white drag-region relative">
+    <div className="w-full h-screen flex flex-col justify-center items-center text-center p-8 bg-gradient-to-b from-gray-100 to-gray-200 text-gray-900 dark:from-gray-800 dark:to-gray-900 dark:text-white drag-region relative transition-colors duration-300">
       <WindowControls />
       <LanguageSwitcher />
+      <ThemeSwitcher />
       <div className="flex-grow flex items-center justify-center w-full">
         <div className="w-full max-w-sm">
           {/* Addım 1: Fayl seçimi */}
@@ -73,7 +81,7 @@ const SetupPage = () => {
               <h2 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
                 {t('welcomeTitle')}
               </h2>
-              <p className="text-sm text-gray-400 max-w-xs mx-auto">{t('welcomeMessage')}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs mx-auto">{t('welcomeMessage')}</p>
             </div>
             <Button onClick={handleFileSelect} className="w-full no-drag-region" size="lg">
               <Icon name="bxs-folder-open" className="mr-2 text-xl" />

@@ -1,0 +1,9 @@
+
+node_modules/
+dist/
+dist-electron/
+coverage/
+*.AppImage
+*.deb
+*.zip
+*.log
