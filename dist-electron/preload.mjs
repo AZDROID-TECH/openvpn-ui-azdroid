@@ -1,1 +1,58 @@
-"use strict";const e=require("electron"),n={config:{getInitial:"config:get-initial",openFileDialog:"config:open-file-dialog",saveCredentials:"config:save-credentials",retryAuthWithNewPassword:"config:retry-auth-with-new-password",reset:"config:reset"},vpn:{connect:"vpn:connect",disconnect:"vpn:disconnect",statusChanged:"vpn:status-changed",authFailed:"vpn:auth-failed"},app:{minimizeWindow:"app:minimize-window",closeToTray:"app:close-to-tray"}};function c(i,t){const o=(a,r)=>{t(r)};return e.ipcRenderer.on(i,o),()=>{e.ipcRenderer.removeListener(i,o)}}const s={onVpnStatusChanged:i=>c(n.vpn.statusChanged,i),onAuthFailed:i=>{const t=()=>i();return e.ipcRenderer.on(n.vpn.authFailed,t),()=>{e.ipcRenderer.removeListener(n.vpn.authFailed,t)}},getInitialConfig:()=>e.ipcRenderer.invoke(n.config.getInitial),openFileDialog:()=>e.ipcRenderer.invoke(n.config.openFileDialog),saveCredentials:i=>e.ipcRenderer.invoke(n.config.saveCredentials,i),retryAuthWithNewPassword:i=>e.ipcRenderer.invoke(n.config.retryAuthWithNewPassword,i),resetApp:()=>e.ipcRenderer.invoke(n.config.reset),connectVpn:()=>{e.ipcRenderer.send(n.vpn.connect)},disconnectVpn:()=>{e.ipcRenderer.send(n.vpn.disconnect)},minimizeWindow:()=>{e.ipcRenderer.send(n.app.minimizeWindow)},closeToTray:()=>{e.ipcRenderer.send(n.app.closeToTray)}};e.contextBridge.exposeInMainWorld("api",s);
+"use strict";
+const electron = require("electron");
+const CHANNELS = {
+  config: {
+    getInitial: "config:get-initial",
+    openFileDialog: "config:open-file-dialog",
+    saveCredentials: "config:save-credentials",
+    retryAuthWithNewPassword: "config:retry-auth-with-new-password",
+    reset: "config:reset"
+  },
+  vpn: {
+    connect: "vpn:connect",
+    disconnect: "vpn:disconnect",
+    statusChanged: "vpn:status-changed",
+    authFailed: "vpn:auth-failed"
+  },
+  app: {
+    minimizeWindow: "app:minimize-window",
+    closeToTray: "app:close-to-tray"
+  }
+};
+function onEvent(channel, callback) {
+  const listener = (_event, payload) => {
+    callback(payload);
+  };
+  electron.ipcRenderer.on(channel, listener);
+  return () => {
+    electron.ipcRenderer.removeListener(channel, listener);
+  };
+}
+const api = {
+  onVpnStatusChanged: (callback) => onEvent(CHANNELS.vpn.statusChanged, callback),
+  onAuthFailed: (callback) => {
+    const listener = () => callback();
+    electron.ipcRenderer.on(CHANNELS.vpn.authFailed, listener);
+    return () => {
+      electron.ipcRenderer.removeListener(CHANNELS.vpn.authFailed, listener);
+    };
+  },
+  getInitialConfig: () => electron.ipcRenderer.invoke(CHANNELS.config.getInitial),
+  openFileDialog: () => electron.ipcRenderer.invoke(CHANNELS.config.openFileDialog),
+  saveCredentials: (credentials) => electron.ipcRenderer.invoke(CHANNELS.config.saveCredentials, credentials),
+  retryAuthWithNewPassword: (password) => electron.ipcRenderer.invoke(CHANNELS.config.retryAuthWithNewPassword, password),
+  resetApp: () => electron.ipcRenderer.invoke(CHANNELS.config.reset),
+  connectVpn: () => {
+    electron.ipcRenderer.send(CHANNELS.vpn.connect);
+  },
+  disconnectVpn: () => {
+    electron.ipcRenderer.send(CHANNELS.vpn.disconnect);
+  },
+  minimizeWindow: () => {
+    electron.ipcRenderer.send(CHANNELS.app.minimizeWindow);
+  },
+  closeToTray: () => {
+    electron.ipcRenderer.send(CHANNELS.app.closeToTray);
+  }
+};
+electron.contextBridge.exposeInMainWorld("api", api);

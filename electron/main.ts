@@ -154,7 +154,12 @@ function assertCredentials(payload: unknown): asserts payload is Credentials {
 async function quitApplication(): Promise<void> {
   isQuitting = true;
   try {
-    await vpnManager.forceStop();
+    await Promise.race([
+      vpnManager.forceStop(),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 1500);
+      }),
+    ]);
   } catch (error) {
     log.warn('VPN dayandırılarkən xəta oldu.', error);
   } finally {

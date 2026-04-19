@@ -20,6 +20,10 @@ interface TempFiles {
   pidPath: string;
 }
 
+interface StopOptions {
+  allowInteractiveElevation: boolean;
+}
+
 /**
  * OpenVPN prosesini başladır, dayandırır və status hadisələrini yayımlayır.
  */
@@ -90,6 +94,11 @@ export class VpnManager extends EventEmitter {
     });
 
     this.process.on('error', async (error) => {
+      if ((error as NodeJS.ErrnoException).code === 'EPERM') {
+        log.warn('OpenVPN prosesinə birbaşa siqnal üçün icazə yoxdur (EPERM).');
+        return;
+      }
+
       log.error('OpenVPN spawn xətası:', error);
       this.emitStatus('error');
       await this.cleanupAfterExit();
@@ -106,14 +115,14 @@ export class VpnManager extends EventEmitter {
    * VPN prosesini normal şəkildə dayandırır.
    */
   public async disconnect(): Promise<void> {
-    await this.stop('SIGTERM');
+    await this.stop('SIGTERM', { allowInteractiveElevation: true });
   }
 
   /**
    * VPN prosesini məcburi dayandırır.
    */
   public async forceStop(): Promise<void> {
-    await this.stop('SIGKILL');
+    await this.stop('SIGKILL', { allowInteractiveElevation: false });
   }
 
   private emitStatus(status: ConnectionState): void {
@@ -146,34 +155,123 @@ export class VpnManager extends EventEmitter {
     ];
 
     if (this.elevationCommand) {
+      const runAsUser = os.userInfo().username;
+      const elevatedArgs = [...openVpnArgs, '--user', runAsUser];
       log.info(`OpenVPN elevated komanda ilə başladılır: ${this.elevationCommand}`);
-      return spawn(this.elevationCommand, openVpnArgs, { stdio: 'pipe' });
+      return spawn(this.elevationCommand, elevatedArgs, { stdio: 'pipe' });
     }
 
     // Əgər elevation aləti yoxdursa birbaşa openvpn çağırırıq.
     return spawn('openvpn', openVpnArgs.slice(1), { stdio: 'pipe' });
   }
 
-  private async stop(signal: StopSignal): Promise<void> {
+  private async stop(signal: StopSignal, options: StopOptions): Promise<void> {
     if (!this.process) {
       return;
     }
 
-    const pid = await this.readOpenVpnPid();
-    if (pid) {
-      const killArg = signal === 'SIGTERM' ? '-15' : '-9';
-      if (this.elevationCommand) {
-        spawn(this.elevationCommand, ['kill', killArg, pid], { stdio: 'ignore' });
-      } else {
-        process.kill(Number(pid), signal);
+    const processRef = this.process;
+    const canSignalDirectly = await this.canSignalDirectly(processRef.pid);
+
+    if (canSignalDirectly) {
+      try {
+        processRef.kill(signal);
+      } catch (error) {
+        log.warn('Proses kill zamanı xəta baş verdi.', error);
       }
+    } else {
+      log.info('OpenVPN root istifadəçi ilə işlədiyi üçün birbaşa kill skip edildi.');
+    }
+
+    const exitedBySignal = await this.waitForProcessExit(1200);
+    if (exitedBySignal) {
+      return;
+    }
+
+    const pid = await this.readOpenVpnPid();
+    const targetPid = pid ?? (processRef.pid ? String(processRef.pid) : null);
+    if (!targetPid) {
+      return;
+    }
+
+    const killArg = signal === 'SIGTERM' ? '-15' : '-9';
+
+    if (this.elevationCommand === 'sudo') {
+      // `-n` interaktiv parol soruşmur; beləliklə tətbiq bağlanışında ilişmə olmur.
+      spawn('sudo', ['-n', 'kill', killArg, targetPid], { stdio: 'ignore' });
+      return;
+    }
+
+    if (this.elevationCommand === 'pkexec') {
+      const timeoutMs = options.allowInteractiveElevation ? 15000 : 1200;
+      const exitCode = await this.spawnAndWait('pkexec', ['kill', killArg, targetPid], timeoutMs);
+      if (exitCode !== 0) {
+        log.warn(`PKEXEC kill fallback uğursuz oldu. exitCode=${String(exitCode)}`);
+      }
+      return;
     }
 
     try {
-      this.process.kill(signal);
+      process.kill(Number(targetPid), signal);
     } catch (error) {
-      log.warn('Proses kill zamanı xəta baş verdi.', error);
+      log.warn('PID üzrə kill zamanı xəta baş verdi.', error);
     }
+  }
+
+  private async canSignalDirectly(pid: number | undefined): Promise<boolean> {
+    if (!pid || typeof process.getuid !== 'function') {
+      return true;
+    }
+
+    try {
+      const stats = await fs.stat(`/proc/${pid}`);
+      return stats.uid === process.getuid();
+    } catch {
+      // /proc oxunmazsa mövcud davranışı qoruyub birbaşa kill cəhd edirik.
+      return true;
+    }
+  }
+
+  private async spawnAndWait(command: string, args: string[], timeoutMs: number): Promise<number | null> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const child = spawn(command, args, { stdio: 'ignore' });
+
+      const finish = (code: number | null): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(code);
+      };
+
+      const timer = setTimeout(() => {
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          // noop
+        }
+        finish(null);
+      }, timeoutMs);
+
+      child.on('error', () => {
+        clearTimeout(timer);
+        finish(-1);
+      });
+
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        finish(code ?? 0);
+      });
+    });
+  }
+
+  private async waitForProcessExit(timeoutMs: number): Promise<boolean> {
+    const startedAt = Date.now();
+    while (this.process && Date.now() - startedAt < timeoutMs) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return this.process === null;
   }
 
   private async prepareTempFiles(ovpnConfig: string, credentials: Credentials): Promise<TempFiles> {
@@ -209,4 +307,3 @@ export class VpnManager extends EventEmitter {
     this.process = null;
   }
 }
-
